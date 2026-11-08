@@ -1,0 +1,132 @@
+# ============================================================
+# 通用 .gitignore 模板
+# 原则：忽略「能重新生成的东西」和「不该进版本库的东西」
+# 用不到的段落可以整段删掉，别让它变成噪音
+# ============================================================
+
+# ---------- 操作系统 ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# ---------- 编辑器 / IDE ----------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# ---------- 密钥与本地配置（最重要，别删） ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.json
+credentials.json
+config.local.*
+
+# ---------- 依赖目录 ----------
+node_modules/
+vendor/
+.venv/
+venv/
+env/
+__pypackages__/
+Pods/
+.bundle/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.ipynb_checkpoints/
+
+# ---------- Node / 前端 ----------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+build/
+.next/
+.nuxt/
+.svelte-kit/
+out/
+.cache/
+.parcel-cache/
+.eslintcache
+.turbo/
+coverage/
+
+# ---------- Go ----------
+*.exe
+*.exe~
+*.dll
+*.test
+*.out
+go.work
+go.work.sum
+
+# ---------- Rust ----------
+target/
+
+# ---------- Java / Kotlin ----------
+*.class
+*.jar
+*.war
+.gradle/
+
+# ---------- C / C++ ----------
+*.o
+*.obj
+*.a
+*.lib
+*.dylib
+cmake-build-*/
+
+# ---------- 数据与产物（按需保留） ----------
+# 大文件和数据一般不进 git，用外部存储或 Git LFS
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.sqlite
+*.db
+!sample*.csv
+tmp/
+temp/
+logs/
+*.log
+
+# ---------- 构建缓存 ----------
+*.tsbuildinfo
