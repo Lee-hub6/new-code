@@ -36,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     from .io import load_reviews
     from .report import build_report
     from .sentiment import get_engine
+    from .translate import translate_words
     from . import visualize
 
     config = load_config()
@@ -59,6 +60,9 @@ def main(argv: list[str] | None = None) -> int:
     df = df.join(sent)
 
     analysis = analyze(df, top_n=args.top_n)
+    analysis["word_trans"] = translate_words(
+        analysis["pos_words"] + analysis["neg_words"], config
+    )
 
     charts = {
         "pie": visualize.plot_sentiment_pie(analysis["sentiment_counts"]),

@@ -30,10 +30,14 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
     counts = {s: int(vc.get(s, 0)) for s in SENTIMENTS}
     pct = {s: (counts[s] / total * 100 if total else 0.0) for s in SENTIMENTS}
 
-    # 平均评分
+    # 平均评分 + 满分制推断
     avg_rating = None
+    rating_max = None
     if "rating" in df.columns and df["rating"].notna().any():
-        avg_rating = round(float(df["rating"].dropna().mean()), 2)
+        r = df["rating"].dropna()
+        avg_rating = round(float(r.mean()), 2)
+        rmax = float(r.max())
+        rating_max = 5 if rmax <= 5 else (10 if rmax <= 10 else int(rmax))
 
     # 时间跨度与按月趋势
     date_range = None
@@ -57,14 +61,22 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
             "neutral": [int(x) for x in pivot["neutral"]],
         }
 
+    # 高频词：先取 2 倍，过滤掉正负面都高频的词（区分度低的领域通用词），再截断
+    pos_words = _top_words(df, "positive", top_n * 2)
+    neg_words = _top_words(df, "negative", top_n * 2)
+    common = {w for w, _ in pos_words} & {w for w, _ in neg_words}
+    pos_words = [(w, c) for w, c in pos_words if w not in common][:top_n]
+    neg_words = [(w, c) for w, c in neg_words if w not in common][:top_n]
+
     return {
         "total": total,
         "avg_rating": avg_rating,
+        "rating_max": rating_max,
         "date_range": date_range,
         "sentiment_counts": counts,
         "sentiment_pct": pct,
         "trend": trend,
-        "pos_words": _top_words(df, "positive", top_n),
-        "neg_words": _top_words(df, "negative", top_n),
+        "pos_words": pos_words,
+        "neg_words": neg_words,
         "untranslated_count": int(df["untranslated"].sum()) if "untranslated" in df.columns else 0,
     }

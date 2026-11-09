@@ -15,12 +15,22 @@ def _fmt_date_range(date_range) -> str:
     return f"{start.strftime('%Y-%m-%d')} ~ {end.strftime('%Y-%m-%d')}"
 
 
+def _fmt_words(words: list[str], word_trans: dict[str, str]) -> list[str]:
+    """把词列表格式化为「原词（中文翻译）」形式。"""
+    out = []
+    for w in words:
+        zh = word_trans.get(w)
+        out.append(f"{w}（{zh}）" if zh else w)
+    return out
+
+
 def _make_findings(analysis: dict) -> list[dict]:
     """基于统计结果生成几条中文洞察 + 行动建议（模板化，后续可接 LLM）。"""
     neg_pct = analysis["sentiment_pct"]["negative"]
     pos_pct = analysis["sentiment_pct"]["positive"]
-    neg_words = [w for w, _ in analysis["neg_words"][:10]]
-    pos_words = [w for w, _ in analysis["pos_words"][:10]]
+    word_trans = analysis.get("word_trans", {})
+    neg_words = _fmt_words([w for w, _ in analysis["neg_words"][:10]], word_trans)
+    pos_words = _fmt_words([w for w, _ in analysis["pos_words"][:10]], word_trans)
 
     items = []
 
@@ -63,7 +73,11 @@ def build_report(
     counts = analysis["sentiment_counts"]
     pct = analysis["sentiment_pct"]
     avg = analysis["avg_rating"]
-    avg_text = f"{avg}" if avg is not None else "—"
+    rating_max = analysis.get("rating_max")
+    if avg is not None and rating_max:
+        avg_text = f"{avg} / {rating_max}"
+    else:
+        avg_text = f"{avg}" if avg is not None else "—"
     total = analysis["total"]
 
     findings_html = "\n".join(
