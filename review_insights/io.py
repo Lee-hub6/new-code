@@ -71,7 +71,11 @@ def load_reviews(
 
     date_col = date_col or _find_column(df, DATE_ALIASES)
     if date_col is not None:
-        result["date"] = pd.to_datetime(df[date_col], errors="coerce")
+        # 去除英文日期里的序数词后缀（21st -> 21），否则 pd.to_datetime 解析不了
+        cleaned = df[date_col].astype(str).str.replace(
+            r"(\d+)(st|nd|rd|th)", r"\1", regex=True
+        )
+        result["date"] = pd.to_datetime(cleaned, errors="coerce")
 
     # 去掉文本为空的行
     before = len(result)
