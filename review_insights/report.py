@@ -78,16 +78,44 @@ def _make_findings(analysis: dict) -> list[dict]:
     return items
 
 
+def _examples_html(analysis: dict) -> str:
+    """生成代表性评论区块的 HTML（原文 + 中文翻译）。"""
+    trans = analysis.get("example_trans", {})
+    pos = analysis.get("pos_examples", [])
+    neg = analysis.get("neg_examples", [])
+    if not pos and not neg:
+        return ""
+
+    def _item(text: str, cls: str) -> str:
+        zh = trans.get(text)
+        html = f'<div class="example {cls}"><p class="orig">{text}</p>'
+        if zh:
+            html += f'<p class="trans">{zh}</p>'
+        return html + "</div>"
+
+    parts = ['<section><h2>代表性评论</h2>']
+    if neg:
+        parts.append('<h3 class="sub">负面示例（客户在骂什么）</h3>')
+        parts.extend(_item(t, "neg") for t in neg)
+    if pos:
+        parts.append('<h3 class="sub">正面示例（客户在夸什么）</h3>')
+        parts.extend(_item(t, "pos") for t in pos)
+    parts.append("</section>")
+    return "".join(parts)
+
+
 def build_report(
     analysis: dict,
     charts: dict,
     title: str = "跨境电商评论洞察报告",
     source: str | None = None,
     engine_name: str = "offline",
+    findings: list[dict] | None = None,
 ) -> str:
     """生成完整 HTML 报告字符串。
 
-    charts 键：pie / trend（可选）/ pos_words / neg_words，值均为 ECharts option dict。
+    charts 键：pie / trend（可选）/ pos_words / neg_words / rating_dist（可选），
+    值均为 ECharts option dict。findings 为 LLM 生成的结论建议，缺省走模板。
     """
     counts = analysis["sentiment_counts"]
     pct = analysis["sentiment_pct"]
@@ -102,8 +130,10 @@ def build_report(
     findings_html = "\n".join(
         f'<div class="finding"><span class="tag">{f["tag"]}</span>'
         f'<p>{f["text"]}</p></div>'
-        for f in _make_findings(analysis)
+        for f in (findings or _make_findings(analysis))
     )
+
+    examples_html = _examples_html(analysis)
 
     warning_html = ""
     if analysis.get("untranslated_count", 0) > 0:
@@ -125,6 +155,14 @@ def build_report(
     render_scripts = []
     if "pie" in charts:
         render_scripts.append(_script("chart-pie", charts["pie"]))
+
+    rating_block = ""
+    if "rating_dist" in charts:
+        rating_block = (
+            '<section><h2>评分分布</h2>'
+            '<div id="chart-rating" class="chart" style="height:300px;"></div></section>'
+        )
+        render_scripts.append(_script("chart-rating", charts["rating_dist"]))
 
     trend_block = ""
     if analysis.get("trend") and "trend" in charts:
@@ -183,6 +221,12 @@ def build_report(
   .tag {{ display: inline-block; background: #eef2ff; color: #4338ca; font-size: 12px;
           font-weight: 600; border-radius: 999px; padding: 2px 10px; margin-bottom: 6px; }}
   .finding p {{ font-size: 14.5px; }}
+  .sub {{ font-size: 14px; color: #6b7280; margin: 12px 0 8px; }}
+  .example {{ background: #f9fafb; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }}
+  .example.neg {{ border-left: 3px solid #d94b4b; }}
+  .example.pos {{ border-left: 3px solid #2e9e6b; }}
+  .example .orig {{ font-size: 14px; }}
+  .example .trans {{ font-size: 13px; color: #6b7280; margin-top: 4px; }}
   .warning {{ background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
               border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px; }}
   footer {{ text-align: center; color: #9ca3af; font-size: 12px; margin-top: 8px; }}
@@ -211,9 +255,13 @@ def build_report(
     <div id="chart-pie" class="chart" style="height:340px;"></div>
   </section>
 
+  {rating_block}
+
   {trend_block}
 
   {words_block}
+
+  {examples_html}
 
   <section>
     <h2>结论与建议</h2>

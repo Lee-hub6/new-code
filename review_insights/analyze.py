@@ -21,6 +21,17 @@ def _top_words(df: pd.DataFrame, sentiment: str, top_n: int) -> list[tuple[str, 
     return counter.most_common(top_n)
 
 
+def _sample_examples(df: pd.DataFrame, sentiment: str, n: int = 3) -> list[str]:
+    """取某类情感里最极端的 n 条评论原文（按 |score| 降序，过滤过短的）。"""
+    sub = df[df["sentiment"] == sentiment].copy()
+    if sub.empty:
+        return []
+    sub = sub[sub["text"].str.len() >= 8]  # 过滤太短的评论
+    if "score" in sub.columns:
+        sub = sub.reindex(sub["score"].abs().sort_values(ascending=False).index)
+    return sub["text"].head(n).tolist()
+
+
 def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
     """输入带 sentiment 标签的 DataFrame，输出报告用的结构化结果字典。"""
     total = len(df)
@@ -30,14 +41,20 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
     counts = {s: int(vc.get(s, 0)) for s in SENTIMENTS}
     pct = {s: (counts[s] / total * 100 if total else 0.0) for s in SENTIMENTS}
 
-    # 平均评分 + 满分制推断
+    # 平均评分 + 满分制推断 + 评分分布
     avg_rating = None
     rating_max = None
+    rating_dist = None
     if "rating" in df.columns and df["rating"].notna().any():
         r = df["rating"].dropna()
         avg_rating = round(float(r.mean()), 2)
         rmax = float(r.max())
         rating_max = 5 if rmax <= 5 else (10 if rmax <= 10 else int(rmax))
+        dist = r.round().value_counts().sort_index()
+        rating_dist = {
+            "labels": [str(int(k)) for k in dist.index],
+            "values": [int(v) for v in dist.values],
+        }
 
     # 时间跨度与按月趋势
     date_range = None
@@ -72,6 +89,7 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
         "total": total,
         "avg_rating": avg_rating,
         "rating_max": rating_max,
+        "rating_dist": rating_dist,
         "date_range": date_range,
         "sentiment_counts": counts,
         "sentiment_pct": pct,
@@ -79,4 +97,6 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
         "pos_words": pos_words,
         "neg_words": neg_words,
         "untranslated_count": int(df["untranslated"].sum()) if "untranslated" in df.columns else 0,
+        "pos_examples": _sample_examples(df, "positive"),
+        "neg_examples": _sample_examples(df, "negative"),
     }

@@ -32,11 +32,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from .analyze import analyze
+    from .conclusion import generate_findings
     from .config import load_config
     from .io import load_reviews
     from .report import build_report
     from .sentiment import get_engine
-    from .translate import translate_words
+    from .translate import translate_sentences, translate_words
     from . import visualize
 
     config = load_config()
@@ -59,6 +60,9 @@ def main(argv: list[str] | None = None) -> int:
     analysis["word_trans"] = translate_words(
         analysis["pos_words"] + analysis["neg_words"], config
     )
+    analysis["example_trans"] = translate_sentences(
+        analysis["pos_examples"] + analysis["neg_examples"], config
+    )
 
     charts = {
         "pie": visualize.sentiment_pie_option(analysis["sentiment_counts"]),
@@ -67,10 +71,17 @@ def main(argv: list[str] | None = None) -> int:
     }
     if analysis["trend"]:
         charts["trend"] = visualize.trend_line_option(analysis["trend"])
+    if analysis.get("rating_dist"):
+        charts["rating_dist"] = visualize.rating_dist_option(analysis["rating_dist"])
+
+    findings = generate_findings(analysis, config)
+    if findings:
+        print("已用 LLM 生成详细结论建议")
 
     html = build_report(
         analysis, charts,
         title=args.title, source=args.source, engine_name=engine.name,
+        findings=findings,
     )
 
     out_path = args.output

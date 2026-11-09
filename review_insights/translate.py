@@ -14,6 +14,39 @@ from .config import Config
 _CJK_RE = re.compile(r"[一-鿿]")
 
 
+def translate_sentences(texts: list[str], config: Config) -> dict[str, str]:
+    """把一组句子（评论原文）翻译成中文，返回 {原文: 中文}。无可用 LLM 时返回空 dict。"""
+    texts = [t.strip() for t in texts if t.strip()]
+    if not texts:
+        return {}
+    if config.deepseek_api_key:
+        api_key, base_url, model = config.deepseek_api_key, config.deepseek_base_url, config.deepseek_model
+    elif config.small_api_key:
+        api_key, base_url, model = config.small_api_key, config.small_base_url, config.small_model
+    else:
+        return {}
+
+    from openai import OpenAI
+
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    user = "\n".join(texts)
+    system = '把这些评论翻译成简体中文。只输出 JSON：{"translations":{"原文":"中文翻译"}}，每条都要有翻译。'
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content)
+        return {k: v for k, v in data.get("translations", {}).items()}
+    except Exception:
+        return {}
+
+
 def translate_words(terms: list[tuple[str, int]], config: Config) -> dict[str, str]:
     """把（词, 频次）列表翻译成中文，返回 {原词: 中文}。"""
     words = [w.strip() for w, _ in terms if w.strip() and not _CJK_RE.search(w)]

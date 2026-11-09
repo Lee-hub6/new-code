@@ -76,3 +76,20 @@ def top_words_option(words: list[tuple[str, int]], title: str, color: str) -> di
             "barMaxWidth": 18,
         }],
     }
+
+
+def rating_dist_option(rating_dist: dict) -> dict:
+    """评分分布柱状图。"""
+    return {
+        "title": {"text": "评分分布", "left": "center", "textStyle": {"fontSize": 15}},
+        "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+        "grid": {"left": 45, "right": 20, "top": 50, "bottom": 35},
+        "xAxis": {"type": "category", "data": rating_dist["labels"], "name": "评分"},
+        "yAxis": {"type": "value", "name": "评论数"},
+        "series": [{
+            "type": "bar",
+            "data": rating_dist["values"],
+            "itemStyle": {"color": "#5b8ff9", "borderRadius": [4, 4, 0, 0]},
+            "barMaxWidth": 40,
+        }],
+    }
