@@ -44,7 +44,7 @@ pytest
 
 ## 关键设计（改动前先读）
 
-- **双引擎**：`sentiment.py` 里 `get_engine(config)` 按 `DEEPSEEK_API_KEY` 是否设置选择 `DeepseekEngine` 或 `VaderEngine`，两者都实现 `analyze(texts) -> DataFrame(sentiment/score/lang)`
+- **三档引擎**：`sentiment.py` 里 `get_engine(config, engine)` 返回 `OfflineEngine`（SnowNLP 中文 + VADER 英文）、`SmallModelEngine`（硅基流动 Qwen）或 `DeepseekEngine` 之一；三者都实现 `analyze(texts) -> DataFrame(sentiment/score/lang/untranslated)`。`LLMEngine` 是后两者的 OpenAI 兼容基类
 - **清洗分两层**：`clean.py` 的 `light_clean`（给情感分析，保留 emoji 和标点）与 `tokenize_for_freq`（给词频，去停用词、中文走 jieba）。不要把 VADER 需要的标点删掉
 - **报告单文件**：`report.py` 生成单文件 HTML，图表以 base64 内嵌，离线可看
 

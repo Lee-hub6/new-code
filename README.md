@@ -20,15 +20,27 @@ python -m review_insights.cli data/sample_reviews.csv -o output/report.html
 python -m review_insights.cli 你的评论文件.csv --source "Lazada 竞品A" -o output/report.html
 ```
 
-## 两种分析引擎
+## 三档分析引擎
 
-默认用**免费方案**：语言检测 → 翻译成英文 → VADER 情感分析，零成本、离线可用。
+借鉴业界多模型分层的思路，按「成本 × 质量」分三档，用 `--engine` 手动选，或 `auto` 自动：
 
-想更准（尤其马来语/印尼语），设置 DeepSeek API Key 后自动切换：
+| 档位 | `--engine` | 技术 | 成本 |
+| --- | --- | --- | --- |
+| 离线 | `offline` | SnowNLP（中文）+ VADER（英文） | 零，离线可用 |
+| 小模型 | `small` | 硅基流动 Qwen | 极低 |
+| 大模型 | `deepseek` | DeepSeek | 低 |
+
+`auto` 按已配置的 key 自动从高到低选：deepseek → small → offline。
 
 ```bash
-export DEEPSEEK_API_KEY=sk-xxxx    # Windows: set DEEPSEEK_API_KEY=sk-xxxx
+# 离线档（零配置，开箱即用）
+python -m review_insights.cli data/sample_reviews.csv --engine offline
+
+# 大模型档（需在 .env 配 DEEPSEEK_API_KEY）
 python -m review_insights.cli data/sample_reviews.csv --engine deepseek
+
+# 小模型档（需在 .env 配 SMALL_MODEL_API_KEY，注册 siliconflow.cn）
+python -m review_insights.cli data/sample_reviews.csv --engine small
 ```
 
 | 参数 | 说明 |
@@ -38,7 +50,7 @@ python -m review_insights.cli data/sample_reviews.csv --engine deepseek
 | `-o, --output` | 输出 HTML 路径，默认 `output/report.html` |
 | `--title` | 报告标题 |
 | `--source` | 数据来源说明，显示在报告头部 |
-| `--engine` | `auto` / `vader` / `deepseek` |
+| `--engine` | `auto` / `offline` / `small` / `deepseek` |
 | `--top-n` | 高频词数量，默认 20 |
 
 ## 目录结构
@@ -50,7 +62,7 @@ python -m review_insights.cli data/sample_reviews.csv --engine deepseek
 │   ├── config.py        # 配置加载（引擎选择）
 │   ├── io.py            # 读取数据、列名自动映射
 │   ├── clean.py         # 清洗与分词（中文走 jieba）
-│   ├── sentiment.py     # 双引擎情感分析
+│   ├── sentiment.py     # 三档情感分析引擎
 │   ├── analyze.py       # 聚合统计
 │   ├── visualize.py     # matplotlib 图表（中文、base64）
 │   └── report.py        # HTML 报告生成

@@ -25,8 +25,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", default="跨境电商评论洞察报告", help="报告标题")
     parser.add_argument("--source", help="数据来源说明（显示在报告头部，如品牌/商品名）")
     parser.add_argument(
-        "--engine", choices=["auto", "vader", "deepseek"], default="auto",
-        help="情感分析引擎：auto 按环境变量自动选，vader 强制免费方案，deepseek 强制大模型",
+        "--engine", choices=["auto", "offline", "small", "deepseek"], default="auto",
+        help="情感分析引擎：offline 离线（免费）、small 小模型、deepseek 大模型、auto 自动",
     )
     parser.add_argument("--top-n", type=int, default=20, help="高频词数量")
     args = parser.parse_args(argv)
@@ -41,16 +41,12 @@ def main(argv: list[str] | None = None) -> int:
 
     config = load_config()
 
-    if args.engine == "deepseek":
-        if not config.deepseek_api_key:
-            print("错误：使用 DeepSeek 引擎需要先设置环境变量 DEEPSEEK_API_KEY", file=sys.stderr)
-            return 1
-        config.use_deepseek = True
-    elif args.engine == "vader":
-        config.use_deepseek = False
-    # auto：按 load_config 的结果走
+    try:
+        engine = get_engine(config, args.engine)
+    except ValueError as e:
+        print(f"错误：{e}", file=sys.stderr)
+        return 1
 
-    engine = get_engine(config)
     print(f"分析引擎：{engine.name}")
 
     df = load_reviews(args.input, text_col=args.text, rating_col=args.rating, date_col=args.date)

@@ -6,4 +6,5 @@ deep-translator>=1.11
 jieba>=0.42
 openai>=1.0
 python-dotenv>=1.0
+snownlp>=0.12
 pytest>=7.0

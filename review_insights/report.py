@@ -90,8 +90,8 @@ def build_report(
     if analysis.get("untranslated_count", 0) > 0:
         warning_html = (
             '<div class="warning">⚠️ 有 ' + str(analysis["untranslated_count"]) +
-            ' 条非英文评论翻译失败（免费翻译接口限流），这部分评论已按原文粗略分析，'
-            '情感判断可能不够准确。建议设置 DEEPSEEK_API_KEY 改用大模型引擎获得更准结果。</div>'
+            ' 条评论因当前引擎无法处理其语言而未准确分析（离线引擎仅支持中英文）。'
+            '建议用 --engine deepseek 获得全语言情感分析。</div>'
         )
 
     img = lambda b64, alt: (

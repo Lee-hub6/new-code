@@ -1,10 +1,12 @@
-"""配置加载：决定使用哪套情感分析引擎，以及相关参数。
+"""配置加载：决定使用哪档情感分析引擎，以及相关参数。
 
-所有配置都通过环境变量传入，不写死在代码里：
-  - DEEPSEEK_API_KEY   设置了就走 DeepSeek 引擎，不设置走免费方案
-  - DEEPSEEK_BASE_URL  默认 https://api.deepseek.com
-  - DEEPSEEK_MODEL     默认 deepseek-chat
-  - BATCH_SIZE         DeepSeek 每批处理的评论条数，默认 20
+所有配置都通过环境变量传入（.env 自动加载）。三档引擎：
+
+  - offline（第一档）：SnowNLP 中文 + VADER 英文，零成本、离线可用，无需任何 key
+  - small（第二档）：硅基流动 Qwen 小模型，便宜，多语言准确
+  - deepseek（第三档）：DeepSeek 大模型，最准，多语言
+
+自动档（auto）按已配置的 key 从高到低选择：deepseek → small → offline。
 """
 from __future__ import annotations
 
@@ -21,19 +23,27 @@ except ImportError:
 
 @dataclass
 class Config:
-    use_deepseek: bool
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
+    small_api_key: str | None
+    small_base_url: str
+    small_model: str
     batch_size: int
+
+    @property
+    def use_deepseek(self) -> bool:
+        """兼容旧引用：是否配置了 DeepSeek key。"""
+        return bool(self.deepseek_api_key)
 
 
 def load_config() -> Config:
-    key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     return Config(
-        use_deepseek=bool(key),
-        deepseek_api_key=key or None,
+        deepseek_api_key=os.environ.get("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         deepseek_model=os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
+        small_api_key=os.environ.get("SMALL_MODEL_API_KEY", "").strip() or None,
+        small_base_url=os.environ.get("SMALL_MODEL_BASE_URL", "https://api.siliconflow.cn/v1"),
+        small_model=os.environ.get("SMALL_MODEL_NAME", "Qwen/Qwen3-8B"),
         batch_size=int(os.environ.get("BATCH_SIZE", "20") or 20),
     )
