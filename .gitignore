@@ -130,3 +130,8 @@ logs/
 
 # ---------- 构建缓存 ----------
 *.tsbuildinfo
+
+# ---------- 本项目 ----------
+output/
+data/*
+!data/sample_reviews.csv

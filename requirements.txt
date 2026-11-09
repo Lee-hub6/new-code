@@ -1,0 +1,9 @@
+pandas>=2.0
+matplotlib>=3.7
+nltk>=3.8
+langdetect>=1.0.9
+deep-translator>=1.11
+jieba>=0.42
+openai>=1.0
+python-dotenv>=1.0
+pytest>=7.0
