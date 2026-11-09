@@ -1,11 +1,27 @@
 """HTML 中文报告生成。
 
-输入分析结果和图表（base64 PNG），输出一个单文件、离线可看的中文报告。
-图表以 data URI 内嵌，方便直接转发给客户。
+输入分析结果和 ECharts option 配置，输出一个单文件、离线可看的中文报告。
+ECharts JS 内联进 HTML，图表交互式（可悬停看数据、缩放），无需联网。
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime
+from pathlib import Path
+
+_ENGINE_NAMES = {
+    "offline": "离线（SnowNLP + VADER）",
+    "small": "小模型（Qwen）",
+    "deepseek": "DeepSeek",
+}
+
+
+def _load_echarts_js() -> str:
+    """读取内嵌的 ECharts 库；找不到时返回空串（降级为无图表）。"""
+    p = Path(__file__).parent / "static" / "echarts.min.js"
+    if p.exists():
+        return p.read_text(encoding="utf-8")
+    return ""
 
 
 def _fmt_date_range(date_range) -> str:
@@ -67,9 +83,12 @@ def build_report(
     charts: dict,
     title: str = "跨境电商评论洞察报告",
     source: str | None = None,
-    engine_name: str = "vader",
+    engine_name: str = "offline",
 ) -> str:
-    """生成完整 HTML 报告字符串。charts 键：pie / trend / words。"""
+    """生成完整 HTML 报告字符串。
+
+    charts 键：pie / trend（可选）/ pos_words / neg_words，值均为 ECharts option dict。
+    """
     counts = analysis["sentiment_counts"]
     pct = analysis["sentiment_pct"]
     avg = analysis["avg_rating"]
@@ -94,19 +113,38 @@ def build_report(
             '建议用 --engine deepseek 获得全语言情感分析。</div>'
         )
 
-    img = lambda b64, alt: (
-        f'<figure class="chart"><img src="data:image/png;base64,{b64}" alt="{alt}"></figure>'
-    )
+    engine_cn = _ENGINE_NAMES.get(engine_name, engine_name)
 
-    trend_block = ""
-    if analysis["trend"] and "trend" in charts:
-        trend_block = (
-            '<section><h2>情感时间趋势</h2>'
-            + img(charts["trend"], "情感时间趋势")
-            + "</section>"
+    # ---- 组装图表的 div 和渲染脚本 ----
+    def _script(chart_id: str, option: dict) -> str:
+        return (
+            f"echarts.init(document.getElementById('{chart_id}'))"
+            f".setOption({json.dumps(option, ensure_ascii=False)});"
         )
 
-    engine_cn = "DeepSeek" if engine_name == "deepseek" else "VADER（免费方案）"
+    render_scripts = []
+    if "pie" in charts:
+        render_scripts.append(_script("chart-pie", charts["pie"]))
+
+    trend_block = ""
+    if analysis.get("trend") and "trend" in charts:
+        trend_block = (
+            '<section><h2>情感时间趋势</h2>'
+            '<div id="chart-trend" class="chart" style="height:320px;"></div></section>'
+        )
+        render_scripts.append(_script("chart-trend", charts["trend"]))
+
+    words_block = '<section><h2>高频词分析</h2><div class="charts-row">'
+    if charts.get("pos_words"):
+        words_block += '<div id="chart-pos" class="chart half" style="height:380px;"></div>'
+        render_scripts.append(_script("chart-pos", charts["pos_words"]))
+    if charts.get("neg_words"):
+        words_block += '<div id="chart-neg" class="chart half" style="height:380px;"></div>'
+        render_scripts.append(_script("chart-neg", charts["neg_words"]))
+    words_block += "</div></section>"
+
+    render_js = "\n".join(render_scripts)
+    echarts_js = _load_echarts_js()
 
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -137,8 +175,9 @@ def build_report(
   section {{ background: #ffffff; border-radius: 14px; padding: 24px 28px; margin-bottom: 20px;
              box-shadow: 0 1px 3px rgba(0,0,0,0.06); }}
   section h2 {{ font-size: 18px; margin-bottom: 16px; }}
-  .chart {{ text-align: center; }}
-  .chart img {{ max-width: 100%; height: auto; }}
+  .chart {{ width: 100%; }}
+  .charts-row {{ display: flex; gap: 20px; flex-wrap: wrap; }}
+  .charts-row .half {{ flex: 1 1 320px; min-width: 280px; }}
   .finding {{ border-left: 3px solid #e5e7eb; padding: 4px 0 4px 16px; margin-bottom: 16px; }}
   .finding:last-child {{ margin-bottom: 0; }}
   .tag {{ display: inline-block; background: #eef2ff; color: #4338ca; font-size: 12px;
@@ -169,15 +208,12 @@ def build_report(
 
   <section>
     <h2>情感分布</h2>
-    {img(charts["pie"], "情感分布")}
+    <div id="chart-pie" class="chart" style="height:340px;"></div>
   </section>
 
   {trend_block}
 
-  <section>
-    <h2>高频词分析</h2>
-    {img(charts["words"], "高频词")}
-  </section>
+  {words_block}
 
   <section>
     <h2>结论与建议</h2>
@@ -186,6 +222,11 @@ def build_report(
 
   <footer>由 review_insights 自动生成</footer>
 </div>
+
+<script>{echarts_js}</script>
+<script>
+{render_js}
+</script>
 </body>
 </html>"""
     return html

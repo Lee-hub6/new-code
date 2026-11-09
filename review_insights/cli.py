@@ -61,11 +61,12 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     charts = {
-        "pie": visualize.plot_sentiment_pie(analysis["sentiment_counts"]),
-        "words": visualize.plot_top_words(analysis["pos_words"], analysis["neg_words"]),
+        "pie": visualize.sentiment_pie_option(analysis["sentiment_counts"]),
+        "pos_words": visualize.top_words_option(analysis["pos_words"], "正面高频词", "#2e9e6b"),
+        "neg_words": visualize.top_words_option(analysis["neg_words"], "负面高频词（差评归因）", "#d94b4b"),
     }
     if analysis["trend"]:
-        charts["trend"] = visualize.plot_trend(analysis["trend"])
+        charts["trend"] = visualize.trend_line_option(analysis["trend"])
 
     html = build_report(
         analysis, charts,
