@@ -77,6 +77,13 @@ def load_reviews(
         )
         result["date"] = pd.to_datetime(cleaned, errors="coerce")
 
+    # 保留其他数值列（混合数据：评论 + 数值指标），供报告做描述统计
+    for col in df.columns:
+        if col in (text_col, rating_col, date_col):
+            continue
+        if pd.api.types.is_numeric_dtype(df[col]):
+            result[col] = df[col]
+
     # 去掉文本为空的行
     before = len(result)
     result = result[result["text"].str.strip().astype(bool)]

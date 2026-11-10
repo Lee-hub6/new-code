@@ -105,6 +105,26 @@ def _examples_html(analysis: dict) -> str:
     return "".join(parts)
 
 
+def _extra_stats_html(analysis: dict) -> str:
+    """混合数据：评论之外的其他数值字段描述统计表。"""
+    stats = analysis.get("extra_stats") or {}
+    if not stats:
+        return ""
+    cols = list(stats.keys())
+    rows = [("最小值", "min"), ("最大值", "max"), ("均值", "mean"), ("中位数", "median")]
+    table = '<table class="stats"><thead><tr><th>指标</th>'
+    for c in cols:
+        table += f"<th>{c}</th>"
+    table += "</tr></thead><tbody>"
+    for name, key in rows:
+        table += f"<tr><td>{name}</td>"
+        for c in cols:
+            table += f"<td>{stats[c][key]}</td>"
+        table += "</tr>"
+    table += "</tbody></table>"
+    return f'<section><h2>其他数据字段</h2>{table}</section>'
+
+
 def build_report(
     analysis: dict,
     charts: dict,
@@ -135,6 +155,7 @@ def build_report(
     )
 
     examples_html = _examples_html(analysis)
+    extra_html = _extra_stats_html(analysis)
 
     warning_html = ""
     if analysis.get("untranslated_count", 0) > 0:
@@ -228,6 +249,10 @@ def build_report(
   .example.pos {{ border-left: 3px solid #2e9e6b; }}
   .example .orig {{ font-size: 14px; }}
   .example .trans {{ font-size: 13px; color: #6b7280; margin-top: 4px; }}
+  table.stats {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+  table.stats th, table.stats td {{ padding: 10px 12px; text-align: right; border-bottom: 1px solid #eceef1; }}
+  table.stats th {{ background: #f9fafb; color: #4b5563; font-weight: 600; }}
+  table.stats td:first-child, table.stats th:first-child {{ text-align: left; color: #6b7280; }}
   .warning {{ background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
               border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px; }}
   footer {{ text-align: center; color: #9ca3af; font-size: 12px; margin-top: 8px; }}
@@ -263,6 +288,8 @@ def build_report(
   {words_block}
 
   {examples_html}
+
+  {extra_html}
 
   <section>
     <h2>结论与建议</h2>

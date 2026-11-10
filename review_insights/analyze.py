@@ -56,6 +56,22 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
             "values": [int(v) for v in dist.values],
         }
 
+    # 其他数值字段的描述统计（混合数据：评论之外还有价格/销量等指标）
+    extra_stats = {}
+    _skip = {"text", "rating", "date", "sentiment", "score", "lang", "untranslated"}
+    for col in df.columns:
+        if col in _skip:
+            continue
+        if pd.api.types.is_numeric_dtype(df[col]):
+            s = df[col].dropna()
+            if len(s) > 0:
+                extra_stats[col] = {
+                    "min": round(float(s.min()), 2),
+                    "max": round(float(s.max()), 2),
+                    "mean": round(float(s.mean()), 2),
+                    "median": round(float(s.median()), 2),
+                }
+
     # 时间跨度与按月趋势
     date_range = None
     trend = None
@@ -99,4 +115,5 @@ def analyze(df: pd.DataFrame, top_n: int = 20) -> dict:
         "untranslated_count": int(df["untranslated"].sum()) if "untranslated" in df.columns else 0,
         "pos_examples": _sample_examples(df, "positive"),
         "neg_examples": _sample_examples(df, "negative"),
+        "extra_stats": extra_stats,
     }
