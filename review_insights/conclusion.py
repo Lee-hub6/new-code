@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import json
 
-from .config import Config
+from .config import Config, llm_target
+from .llm import chat_json
 
 
 def _build_summary(analysis: dict) -> str:
@@ -35,14 +36,13 @@ def _build_summary(analysis: dict) -> str:
     return "\n".join(parts)
 
 
-def generate_findings(analysis: dict, config: Config) -> list[dict] | None:
+def generate_findings(analysis: dict, config: Config,
+                      preferred: str | None = None) -> list[dict] | None:
     """用 LLM 生成详细结论建议，返回 [{tag, text}]；无可用 key 或失败时返回 None。"""
-    if config.deepseek_api_key:
-        api_key, base_url, model = config.deepseek_api_key, config.deepseek_base_url, config.deepseek_model
-    elif config.small_api_key:
-        api_key, base_url, model = config.small_api_key, config.small_base_url, config.small_model
-    else:
+    target = llm_target(config, preferred)
+    if target is None:
         return None
+    api_key, base_url, model = target
 
     summary = _build_summary(analysis)
     system = (
@@ -52,24 +52,16 @@ def generate_findings(analysis: dict, config: Config) -> list[dict] | None:
         '每条 text 要具体、有数据支撑，行动建议可执行，不要空话套话。'
     )
     try:
-        from openai import OpenAI
-
-        client = OpenAI(api_key=api_key, base_url=base_url)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": summary},
-            ],
+        data = chat_json(
+            api_key, base_url, model, system, summary,
             temperature=0.3,
-            response_format={"type": "json_object"},
         )
-        data = json.loads(resp.choices[0].message.content)
-        findings = data.get("findings", [])
-        out = []
-        for f in findings:
-            if isinstance(f, dict) and f.get("tag") and f.get("text"):
-                out.append({"tag": str(f["tag"]), "text": str(f["text"])})
-        return out if out else None
     except Exception:
-        return None
+        return None  # 配置类错误在这里降级为模板结论，不中断整份报告
+
+    findings = (data or {}).get("findings", []) or []
+    out = []
+    for f in findings:
+        if isinstance(f, dict) and f.get("tag") and f.get("text"):
+            out.append({"tag": str(f["tag"]), "text": str(f["text"])})
+    return out if out else None

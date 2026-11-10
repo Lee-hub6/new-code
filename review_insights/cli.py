@@ -25,8 +25,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", default="跨境电商评论洞察报告", help="报告标题")
     parser.add_argument("--source", help="数据来源说明（显示在报告头部，如品牌/商品名）")
     parser.add_argument(
-        "--engine", choices=["auto", "offline", "small", "deepseek"], default="auto",
-        help="情感分析引擎：offline 离线（免费）、small 小模型、deepseek 大模型、auto 自动",
+        "--engine", choices=["auto", "offline", "small", "kimi", "deepseek"], default="auto",
+        help="情感分析引擎：offline 离线（免费）、small 小模型、kimi Kimi、deepseek 大模型、auto 自动",
     )
     parser.add_argument("--top-n", type=int, default=20, help="高频词数量")
     args = parser.parse_args(argv)
@@ -58,10 +58,10 @@ def main(argv: list[str] | None = None) -> int:
 
     analysis = analyze(df, top_n=args.top_n)
     analysis["word_trans"] = translate_words(
-        analysis["pos_words"] + analysis["neg_words"], config
+        analysis["pos_words"] + analysis["neg_words"], config, engine.name
     )
     analysis["example_trans"] = translate_sentences(
-        analysis["pos_examples"] + analysis["neg_examples"], config
+        analysis["pos_examples"] + analysis["neg_examples"], config, engine.name
     )
 
     charts = {
@@ -74,9 +74,11 @@ def main(argv: list[str] | None = None) -> int:
     if analysis.get("rating_dist"):
         charts["rating_dist"] = visualize.rating_dist_option(analysis["rating_dist"])
 
-    findings = generate_findings(analysis, config)
+    findings = generate_findings(analysis, config, engine.name)
     if findings:
         print("已用 LLM 生成详细结论建议")
+    elif engine.name != "offline":
+        print("注意：LLM 生成结论失败（可能是限流或网络问题），已退回模板文字")
 
     html = build_report(
         analysis, charts,

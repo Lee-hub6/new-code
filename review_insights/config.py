@@ -26,6 +26,9 @@ class Config:
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
+    kimi_api_key: str | None
+    kimi_base_url: str
+    kimi_model: str
     small_api_key: str | None
     small_base_url: str
     small_model: str
@@ -37,11 +40,37 @@ class Config:
         return bool(self.deepseek_api_key)
 
 
+def llm_target(config: Config, preferred: str | None = None):
+    """选一个可用的 LLM 连接，返回 (api_key, base_url, model)；都没有则返回 None。
+
+    preferred 指定优先使用的引擎（deepseek / kimi / small）；
+    传 "offline" 表示不调用任何 LLM（保证零成本），此时返回 None。
+    指定的引擎没配 key 时，退回按 deepseek → kimi → small 的优先级选。
+    """
+    if preferred == "offline":
+        return None
+    providers = {
+        "deepseek": (config.deepseek_api_key, config.deepseek_base_url, config.deepseek_model),
+        "kimi": (config.kimi_api_key, config.kimi_base_url, config.kimi_model),
+        "small": (config.small_api_key, config.small_base_url, config.small_model),
+    }
+    order = [preferred] if preferred in providers else []
+    order += [p for p in ("deepseek", "kimi", "small") if p != preferred]
+    for name in order:
+        api_key, base_url, model = providers[name]
+        if api_key:
+            return api_key, base_url, model
+    return None
+
+
 def load_config() -> Config:
     return Config(
         deepseek_api_key=os.environ.get("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         deepseek_model=os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
+        kimi_api_key=os.environ.get("MOONSHOT_API_KEY", "").strip() or None,
+        kimi_base_url=os.environ.get("MOONSHOT_BASE_URL", "https://api.moonshot.cn/v1"),
+        kimi_model=os.environ.get("MOONSHOT_MODEL", "kimi-k2-0711-preview"),
         small_api_key=os.environ.get("SMALL_MODEL_API_KEY", "").strip() or None,
         small_base_url=os.environ.get("SMALL_MODEL_BASE_URL", "https://api.siliconflow.cn/v1"),
         small_model=os.environ.get("SMALL_MODEL_NAME", "Qwen/Qwen3-8B"),

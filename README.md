@@ -20,17 +20,18 @@ python -m review_insights.cli data/sample_reviews.csv -o output/report.html
 python -m review_insights.cli 你的评论文件.csv --source "Lazada 竞品A" -o output/report.html
 ```
 
-## 三档分析引擎
+## 四档分析引擎
 
-借鉴业界多模型分层的思路，按「成本 × 质量」分三档，用 `--engine` 手动选，或 `auto` 自动：
+借鉴业界多模型分层的思路，按「成本 × 质量」分档，用 `--engine` 手动选，或 `auto` 自动：
 
 | 档位 | `--engine` | 技术 | 成本 |
 | --- | --- | --- | --- |
 | 离线 | `offline` | SnowNLP（中文）+ VADER（英文） | 零，离线可用 |
 | 小模型 | `small` | 硅基流动 Qwen | 极低 |
-| 大模型 | `deepseek` | DeepSeek | 低 |
+| Kimi | `kimi` | Moonshot Kimi | 低 |
+| DeepSeek | `deepseek` | DeepSeek | 低 |
 
-`auto` 按已配置的 key 自动从高到低选：deepseek → small → offline。
+`auto` 按已配置的 key 自动从高到低选：deepseek → kimi → small → offline。
 
 ```bash
 # 离线档（零配置，开箱即用）

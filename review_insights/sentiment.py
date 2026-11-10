@@ -14,12 +14,14 @@
 from __future__ import annotations
 
 import json
+import time
 from abc import ABC, abstractmethod
 
 import pandas as pd
 
 from .clean import light_clean
 from .config import Config
+from .llm import chat_json
 
 
 def _label(score: float) -> str:
@@ -111,30 +113,16 @@ class LLMEngine(SentimentEngine):
         self._client = OpenAI(api_key=api_key, base_url=base_url)
         self._model = model
         self._batch_size = max(1, batch_size)
+        self._temperature = 0.0  # 部分模型（如 kimi-k3）只接受 1，由 llm.chat_json 自动切换
 
     def _analyze_batch(self, batch: list[str]) -> list[dict]:
-        from openai import AuthenticationError
-
         user = "\n".join(f"{i}. {t}" for i, t in enumerate(batch, 1))
-        try:
-            resp = self._client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": self._SYSTEM},
-                    {"role": "user", "content": user},
-                ],
-                temperature=0,
-                response_format={"type": "json_object"},
-            )
-            content = resp.choices[0].message.content
-            data = json.loads(content)
-            results = data.get("results", [])
-        except AuthenticationError:
-            # key 无效是致命错误，必须让用户看到，不能静默降级
-            raise
-        except Exception:
-            # 网络抖动、JSON 解析失败等可容错错误，才降级为中性
-            results = []
+        # 重试、限流退避、temperature 兼容、配置错误抛出，统一由 llm.chat_json 处理
+        data = chat_json(
+            None, "", self._model, self._SYSTEM, user,
+            temperature=self._temperature, client=self._client,
+        )
+        results = (data or {}).get("results", []) or []
 
         out = []
         for i in range(len(batch)):
@@ -171,6 +159,18 @@ class DeepseekEngine(LLMEngine):
         )
 
 
+class KimiEngine(LLMEngine):
+    """大模型引擎：Moonshot Kimi。"""
+
+    name = "kimi"
+
+    def __init__(self, config: Config) -> None:
+        super().__init__(
+            config.kimi_api_key, config.kimi_base_url,
+            config.kimi_model, config.batch_size,
+        )
+
+
 class SmallModelEngine(LLMEngine):
     """小模型引擎：硅基流动 Qwen。"""
 
@@ -199,9 +199,15 @@ def get_engine(config: Config, engine: str = "auto") -> SentimentEngine:
         if not config.deepseek_api_key:
             raise ValueError("使用 DeepSeek 引擎需要设置环境变量 DEEPSEEK_API_KEY")
         return DeepseekEngine(config)
+    if engine == "kimi":
+        if not config.kimi_api_key:
+            raise ValueError("使用 Kimi 引擎需要设置环境变量 MOONSHOT_API_KEY")
+        return KimiEngine(config)
     # auto：按已配置的 key 从高到低选
     if config.deepseek_api_key:
         return DeepseekEngine(config)
+    if config.kimi_api_key:
+        return KimiEngine(config)
     if config.small_api_key:
         return SmallModelEngine(config)
     return OfflineEngine()

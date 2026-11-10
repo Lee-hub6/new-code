@@ -12,6 +12,7 @@ from pathlib import Path
 _ENGINE_NAMES = {
     "offline": "离线（SnowNLP + VADER）",
     "small": "小模型（Qwen）",
+    "kimi": "Kimi",
     "deepseek": "DeepSeek",
 }
 
